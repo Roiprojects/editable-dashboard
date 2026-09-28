@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background: #f9fafb;
+            border-right: 1px solid #f3f4f6;
+            padding: 24px 0;
+            flex-shrink: 0;
+        }
+        .sidebar-nav { list-style: none; }
+        .sidebar-nav li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            margin: 2px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .sidebar-nav li:hover { background: #f3f4f6; color: #374151; }
+        .sidebar-nav li.active { background: #eff6ff; color: #2563eb; }
+        .sidebar-nav li svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        .main-content { flex: 1; padding: 32px 40px; overflow: auto; }
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .dashboard-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: -0.5px;
+        }
+        .date-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+            user-select: none;
+            transition: border-color 0.15s;
+            position: relative;
+        }
+        .date-picker:hover { border-color: #9ca3af; }
+        .date-picker .cal-icon {
+            width: 18px; height: 18px;
+            background: #374151;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .date-picker .chevron {
+            width: 16px; height: 16px;
+            color: #6b7280;
+            transition: transform 0.2s;
+        }
+        .date-picker.open .chevron { transform: rotate(180deg); }
+        .subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 28px;
+        }
+        .date-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 6px;
+            min-width: 180px;
+            z-index: 100;
+            display: none;
+        }
+        .date-dropdown.show { display: block; }
+        .date-dropdown .option {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .date-dropdown .option:hover { background: #f3f4f6; }
+        .date-dropdown .option.active { background: #eff6ff; color: #2563eb; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            position: relative;
+        }
+        .stat-card.blue { background: #eff6ff; }
+        .stat-card.green { background: #f0fdf4; }
+        .stat-card.purple { background: #faf5ff; }
+        .stat-card.orange { background: #fff7ed; }
+        .stat-info { flex: 1; }
+        .stat-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #111827;
+            line-height: 1.1;
+        }
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .stat-change.up { color: #16a34a; }
+        .stat-change.down { color: #dc2626; }
+        .stat-change span { color: #9ca3af; font-weight: 400; font-size: 12px; }
+        .stat-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stat-icon svg { width: 22px; height: 22px; }
+        .stat-icon.blue { background: #3b82f6; color: white; }
+        .stat-icon.green { background: #22c55e; color: white; }
+        .stat-icon.purple { background: #a855f7; color: white; }
+        .stat-icon.orange { background: #f97316; color: white; }
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+        .chart-card, .sources-card {
+            background: #ffffff;
+            border: 1px solid #f3f4f6;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .card-title { font-size: 16px; font-weight: 600; color: #111827; }
+        .card-total { font-size: 14px; color: #2563eb; font-weight: 500; }
+        .card-total strong { font-size: 16px; }
+        .chart-container { position: relative; height: 240px; overflow: visible; }
+        .chart-container.dragging canvas { pointer-events: none; }
+        .drag-tooltip {
+            position: absolute;
+            display: none;
+            background: #111827;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 50;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+        .drag-tooltip.show { display: block; }
+
+        /* Axis label overlays */
+        .axis-overlay {
+            position: absolute;
+            font-size: 12px;
+            font-weight: 500;
+            color: #9ca3af;
+            pointer-events: none;
+            user-select: none;
+            font-family: 'Inter', sans-serif;
+            line-height: 1;
+        }
+        .axis-overlay.editable {
+            pointer-events: auto;
+            cursor: default;
+            padding: 0 3px;
+            margin: 0 -3px;
+            border: 2px solid transparent;
+            border-radius: 3px;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .axis-overlay.editable:hover {
+            border-color: #d1d5db;
+            background: rgba(255,255,255,0.7);
+        }
+        .axis-overlay.editable:focus {
+            border-color: #2563eb;
+            background: white;
+            color: #111827;
+            outline: none;
+            cursor: text;
+            box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+        }
+        .x-label { text-align: center; }
+        .y-label { text-align: right; }
+
+        .source-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+        }
+        .source-name {
+            font-size: 13px;
+            color: #374151;
+            font-weight: 500;
+            width: 120px;
+            flex-shrink: 0;
+        }
+        .source-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            overflow: visible;
+            cursor: ew-resize;
+            position: relative;
+        }
+        .source-bar-wrapper:hover { height: 10px; }
+        .source-bar-wrapper .drag-tip {
+            position: absolute;
+            top: -28px;
+            background: #111827;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+        .source-bar-wrapper:hover .drag-tip,
+        .source-bar-wrapper.dragging .drag-tip { opacity: 1; }
+        .source-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.05s linear;
+        }
+        .source-bar.blue { background: #3b82f6; }
+        .source-bar.dark-blue { background: #2563eb; }
+        .source-bar.light-blue { background: #60a5fa; }
+        .source-bar.pale-blue { background: #93c5fd; }
+        .source-bar.very-pale-blue { background: #bfdbfe; }
+        .source-stats {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 12px;
+            flex-shrink: 0;
+        }
+        .source-percent, .source-count {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 400;
+        }
+        .source-percent { min-width: 36px; text-align: right; }
+        .source-count { min-width: 20px; text-align: right; }
+
+        [contenteditable="true"] {
+            outline: none;
+            border: 2px solid #2563eb !important;
+            background: white !important;
+            border-radius: 4px;
+            padding: 1px 4px;
+            margin: -1px -4px;
+            cursor: text;
+            box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+        .placeholder-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 0;
+            text-align: center;
+        }
+        .placeholder-page .icon {
+            width: 64px; height: 64px;
+            background: #f3f4f6;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .placeholder-page .icon svg { width: 28px; height: 28px; color: #9ca3af; }
+        .placeholder-page h2 { font-size: 20px; font-weight: 600; color: #111827; margin-bottom: 6px; }
+        .placeholder-page p { font-size: 14px; color: #6b7280; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar">
+    <ul class="sidebar-nav">
+        <li data-page="dashboard" class="active">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10m-2 2h-3"/></svg>
+            <span class="editable-all" data-sidebarItem>Dashboard</span>
+        </li>
+        <li data-page="enquiries">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="editable-all" data-sidebarItem>Enquiries</span>
+        </li>
+        <li data-page="leads">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            <span class="editable-all" data-sidebarItem>Leads</span>
+        </li>
+        <li data-page="customers">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="editable-all" data-sidebarItem>Customers</span>
+        </li>
+        <li data-page="calendar">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span class="editable-all" data-sidebarItem>Calendar</span>
+        </li>
+        <li data-page="tasks">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            <span class="editable-all" data-sidebarItem>Tasks</span>
+        </li>
+        <li data-page="reports">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span class="editable-all" data-sidebarItem>Reports</span>
+        </li>
+        <li data-page="settings">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="editable-all" data-sidebarItem>Settings</span>
+        </li>
+    </ul>
+</aside>
+
+<!-- Dashboard Page -->
+<main class="main-content page active" id="page-dashboard">
+    <div class="dashboard-header">
+        <h1 class="editable-all" data-pageTitle>Dashboard</h1>
+        <div class="date-picker" id="datePicker">
+            <div class="cal-icon">&#x1F4C5;</div>
+            <span id="dateLabel" class="editable-all" data-dateLabel>1 Sep 2026 - 22 Sep 2026</span>
+            <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            <div class="date-dropdown" id="dateDropdown">
+                <div class="option" data-range="7">Last 7 days</div>
+                <div class="option" data-range="14">Last 14 days</div>
+                <div class="option active" data-range="22">Last 22 days</div>
+                <div class="option" data-range="30">Last 30 days</div>
+                <div class="option" data-range="90">Last 3 months</div>
+            </div>
+        </div>
+    </div>
+    <p class="subtitle editable-all" data-pageSubtitle>Overview of your website enquiries and performance.</p>
+
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <div class="stat-info">
+                <div class="stat-title editable-all" data-statTitle>New enquiries today</div>
+                <div class="stat-value"><span class="editable-all" data-key="newEnquiries" data-field="value">4</span></div>
+                <div class="stat-change up">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                    <span class="editable-all" data-key="newEnquiries" data-field="change">33</span>%
+                    <span class="editable-all" data-key="newEnquiries" data-field="changeLabel">vs. previous day</span>
+                </div>
+            </div>
+            <div class="stat-icon blue">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+        </div>
+
+        <div class="stat-card green">
+            <div class="stat-info">
+                <div class="stat-title editable-all" data-statTitle>Total enquiries</div>
+                <div class="stat-value"><span class="editable-all" data-key="totalEnquiries" data-field="value">62</span></div>
+                <div class="stat-change up">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                    <span class="editable-all" data-key="totalEnquiries" data-field="change">47</span>%
+                    <span class="editable-all" data-key="totalEnquiries" data-field="changeLabel">vs. previous period</span>
+                </div>
+            </div>
+            <div class="stat-icon green">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            </div>
+        </div>
+
+        <div class="stat-card purple">
+            <div class="stat-info">
+                <div class="stat-title editable-all" data-statTitle>Calls booked</div>
+                <div class="stat-value"><span class="editable-all" data-key="callsBooked" data-field="value">18</span></div>
+                <div class="stat-change up">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                    <span class="editable-all" data-key="callsBooked" data-field="change">38</span>%
+                    <span class="editable-all" data-key="callsBooked" data-field="changeLabel">vs. previous period</span>
+                </div>
+            </div>
+            <div class="stat-icon purple">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+            </div>
+        </div>
+
+        <div class="stat-card orange">
+            <div class="stat-info">
+                <div class="stat-title editable-all" data-statTitle>Conversion rate</div>
+                <div class="stat-value"><span class="editable-all" data-key="conversionRate" data-field="value">29</span>%</div>
+                <div class="stat-change up">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                    <span class="editable-all" data-key="conversionRate" data-field="change">6</span>%
+                    <span class="editable-all" data-key="conversionRate" data-field="changeLabel">vs. previous period</span>
+                </div>
+            </div>
+            <div class="stat-icon orange">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-2 2v1.586a1 1 0 01-1.707.707L15 20.414l-5.586-5.414A1 1 0 019 14.586V13l-2-2V6a1 1 0 011-1z"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-grid">
+        <div class="chart-card">
+            <div class="card-header">
+                <div class="card-title editable-all" data-chartTitle>Enquiries over time</div>
+                <div class="card-total" id="chartTotal">Total: <strong>62 enquiries</strong></div>
+            </div>
+            <div class="chart-container" id="chartContainer">
+                <canvas id="enquiriesChart"></canvas>
+                <div class="drag-tooltip" id="dragTooltip"></div>
+                <div id="xAxisLabels"></div>
+                <div id="yAxisLabels"></div>
+            </div>
+        </div>
+
+        <div class="sources-card">
+            <div class="card-header">
+                <div class="card-title editable-all" data-chartTitle>Enquiry sources</div>
+            </div>
+            <div id="sourcesList"></div>
+        </div>
+    </div>
+</main>
+
+<!-- Other Pages -->
+<main class="main-content page" id="page-enquiries">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Enquiries</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>Manage and track all your enquiries.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Enquiries</h2>
+        <p class="editable-all" data-pageSubtitle>Your enquiry list will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-leads">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Leads</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>Track and manage your leads.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Leads</h2>
+        <p class="editable-all" data-pageSubtitle>Your leads pipeline will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-customers">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Customers</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>View and manage your customer base.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Customers</h2>
+        <p class="editable-all" data-pageSubtitle>Your customer list will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-calendar">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Calendar</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>Schedule and manage appointments.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Calendar</h2>
+        <p class="editable-all" data-pageSubtitle>Your calendar and appointments will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-tasks">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Tasks</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>Track and complete your tasks.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+        <h2 class="editable-all" data-pageName>Tasks</h2>
+        <p class="editable-all" data-pageSubtitle>Your tasks list will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-reports">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Reports</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>View detailed analytics and reports.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Reports</h2>
+        <p class="editable-all" data-pageSubtitle>Your reports and analytics will appear here.</p>
+    </div>
+</main>
+
+<main class="main-content page" id="page-settings">
+    <h1 class="editable-all" data-pageName style="font-size:32px;font-weight:700;margin-bottom:4px;">Settings</h1>
+    <p class="subtitle editable-all" data-pageSubtitle>Manage your account and preferences.</p>
+    <div class="placeholder-page">
+        <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+        <h2 class="editable-all" data-pageName>Settings</h2>
+        <p class="editable-all" data-pageSubtitle>Your settings and preferences will appear here.</p>
+    </div>
+</main>
+
+<script>
+const state = {
+    currentPage: 'dashboard',
+    dateRange: 18,
+    stats: {
+        newEnquiries:   { value: 4,  change: 33, changeLabel: 'vs. previous day',    suffix: '' },
+        totalEnquiries: { value: 62, change: 47, changeLabel: 'vs. previous period', suffix: '' },
+        callsBooked:    { value: 18, change: 38, changeLabel: 'vs. previous period', suffix: '' },
+        conversionRate: { value: 29, change: 6,  changeLabel: 'vs. previous period', suffix: '%' },
+    },
+    sources: [
+        { name: 'Organic Search', percent: 38, count: 24, barClass: 'blue' },
+        { name: 'Direct',         percent: 21, count: 13, barClass: 'dark-blue' },
+        { name: 'Paid Search',    percent: 16, count: 10, barClass: 'light-blue' },
+        { name: 'Referral',       percent: 11, count: 7,  barClass: 'pale-blue' },
+        { name: 'Social Media',   percent: 8,  count: 5,  barClass: 'very-pale-blue' },
+        { name: 'Other',          percent: 6,  count: 3,  barClass: 'very-pale-blue' },
+    ],
+    chartData: [1, 0.5, 3, 2.5, 4, 3, 4.5, 3.5, 4, 5, 8, 9, 5, 4, 3.5, 5, 5, 7],
+    chartLabels: [],
+};
+
+const dateRanges = [
+    { days: 7,  label: '1 Sep 2026 - 7 Sep 2026' },
+    { days: 14, label: '1 Sep 2026 - 14 Sep 2026' },
+    { days: 22, label: '1 Sep 2026 - 22 Sep 2026' },
+    { days: 30, label: '1 Aug 2026 - 30 Sep 2026' },
+    { days: 90, label: '1 Jul 2026 - 30 Sep 2026' },
+];
+
+// Sidebar: single click navigates, double click edits text
+document.querySelectorAll('.sidebar-nav li').forEach(li => {
+    let clickTimer = null;
+    const textSpan = li.querySelector('.editable-all');
+
+    li.addEventListener('click', (e) => {
+        if (li._editing) return;
+        if (clickTimer) {
+            // Double click detected
+            clearTimeout(clickTimer);
+            clickTimer = null;
+            e.preventDefault();
+            e.stopPropagation();
+            if (textSpan) startEdit(textSpan);
+        } else {
+            clickTimer = setTimeout(() => {
+                clickTimer = null;
+                // Single click - navigate
+                const page = li.dataset.page;
+                state.currentPage = page;
+                document.querySelectorAll('.sidebar-nav li').forEach(l => l.classList.toggle('active', l.dataset.page === page));
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById('page-' + page).classList.add('active');
+            }, 250);
+        }
+    });
+});
+
+// Date picker
+const datePicker = document.getElementById('datePicker');
+const dateDropdown = document.getElementById('dateDropdown');
+// Date picker: single click opens dropdown, double click on date text edits it
+let dateClickTimer = null;
+
+datePicker.addEventListener('click', (e) => {
+    if (e.target.closest('.date-dropdown')) return;
+
+    const dateLabel = e.target.closest('#dateLabel');
+    if (dateLabel) {
+        if (dateClickTimer) {
+            clearTimeout(dateClickTimer);
+            dateClickTimer = null;
+            // Double click on date label - edit it
+            e.preventDefault();
+            e.stopPropagation();
+            startEdit(dateLabel);
+            return;
+        }
+        dateClickTimer = setTimeout(() => {
+            dateClickTimer = null;
+            dateDropdown.classList.toggle('show');
+            datePicker.classList.toggle('open');
+        }, 250);
+        return;
+    }
+
+    dateDropdown.classList.toggle('show');
+    datePicker.classList.toggle('open');
+});
+dateDropdown.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setDateRange(parseInt(opt.dataset.range));
+        dateDropdown.classList.remove('show');
+        datePicker.classList.remove('open');
+    });
+});
+document.addEventListener('click', (e) => {
+    if (!datePicker.contains(e.target)) {
+        dateDropdown.classList.remove('show');
+        datePicker.classList.remove('open');
+    }
+});
+
+function setDateRange(days) {
+    state.dateRange = days;
+    const dr = dateRanges.find(r => r.days === days) || dateRanges[0];
+    document.getElementById('dateLabel').textContent = dr.label;
+    dateDropdown.querySelectorAll('.option').forEach(o => o.classList.toggle('active', parseInt(o.dataset.range) === days));
+    simulateNewData(days);
+}
+
+function simulateNewData(days) {
+    const m = {7:0.3, 14:0.55, 22:1, 30:1.35, 90:2.8}[days] || 1;
+    const r = (lo, hi) => Math.round(lo + Math.random() * (hi - lo));
+    state.stats.newEnquiries.value = r(4*m*0.7, 4*m*1.3);
+    state.stats.totalEnquiries.value = r(62*m*0.8, 62*m*1.2);
+    state.stats.callsBooked.value = r(18*m*0.7, 18*m*1.3);
+    state.stats.conversionRate.value = Math.min(100, r(29*m*0.6, 29*m*1.4));
+    state.stats.newEnquiries.change = r(20, 60);
+    state.stats.totalEnquiries.change = r(30, 80);
+    state.stats.callsBooked.change = r(25, 70);
+    state.stats.conversionRate.change = r(3, 15);
+    const total = state.stats.totalEnquiries.value;
+    let rem = total;
+    state.sources[0].percent = r(30,50); state.sources[0].count = Math.round(r(0.3,0.5)*total); rem -= state.sources[0].count;
+    state.sources[1].percent = r(15,25); state.sources[1].count = Math.round(r(0.15,0.25)*total); rem -= state.sources[1].count;
+    state.sources[2].percent = r(10,20); state.sources[2].count = Math.round(r(0.1,0.2)*total); rem -= state.sources[2].count;
+    state.sources[3].percent = r(5,15); state.sources[3].count = Math.round(r(0.05,0.15)*total); rem -= state.sources[3].count;
+    state.sources[4].percent = r(3,12); state.sources[4].count = Math.round(r(0.03,0.12)*total); rem -= state.sources[4].count;
+    state.sources[5].count = Math.max(rem, 1);
+    state.sources[5].percent = Math.round(state.sources[5].count / total * 100);
+    const tp = state.sources.reduce((s,x) => s + x.percent, 0);
+    state.sources.forEach(x => { x.percent = Math.round(x.percent*100/tp); x.count = Math.round(total*x.percent/100); });
+    renderAll();
+}
+
+// Double-click editing for all .editable-all fields
+document.addEventListener('dblclick', (e) => {
+    const el = e.target.closest('.editable-all');
+    if (!el || el.dataset.editing === 'true') return;
+    // Don't edit sidebar while navigating
+    if (el.closest('.sidebar-nav li')) return;
+    startEdit(el);
+});
+
+function startEdit(el) {
+    el.dataset.editing = 'true';
+    const saved = el.textContent;
+    el.contentEditable = 'true';
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    el._saved = saved;
+    el.addEventListener('blur', handler);
+    el.addEventListener('keydown', keyHandler);
+}
+
+function keyHandler(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    if (e.key === 'Escape') { this.textContent = this._saved; this.blur(); }
+}
+
+function finishEdit(el) {
+    el.contentEditable = 'false';
+    const raw = el.textContent.trim();
+    const saved = el._saved;
+    delete el.dataset.editing;
+    el.removeEventListener('blur', handler);
+    el.removeEventListener('keydown', keyHandler);
+
+    const key = el.dataset.key;
+    const field = el.dataset.field;
+    if (key && field) {
+        if (field === 'value') {
+            const num = parseInt(raw.replace(/[^0-9]/g, ''));
+            if (!isNaN(num)) { state.stats[key].value = num; el.textContent = num + state.stats[key].suffix; }
+            else el.textContent = saved;
+        } else if (field === 'change') {
+            const num = parseInt(raw.replace(/[^0-9-]/g, ''));
+            if (!isNaN(num)) { state.stats[key].change = num; el.textContent = num; }
+            else el.textContent = saved;
+        } else if (field === 'changeLabel') {
+            state.stats[key].changeLabel = raw;
+        }
+    }
+    if (el.dataset.srcName !== undefined) {
+        const idx = parseInt(el.dataset.srcIndex);
+        state.sources[idx].name = raw;
+        renderSources();
+    }
+    if (el.dataset.srcPercent !== undefined) {
+        const idx = parseInt(el.dataset.srcIndex);
+        const num = parseInt(raw);
+        if (!isNaN(num) && num >= 0 && num <= 100) { state.sources[idx].percent = num; recalcSources(); renderSources(); }
+        else el.textContent = saved;
+    }
+    if (el.dataset.srcCount !== undefined) {
+        const idx = parseInt(el.dataset.srcIndex);
+        const num = parseInt(raw);
+        if (!isNaN(num) && num >= 0) { state.sources[idx].count = num; recalcSources(); renderSources(); }
+        else el.textContent = saved;
+    }
+    if (el.dataset.pageTitle) { /* already set */ }
+    if (el.dataset.pageSubtitle) { /* already set */ }
+    if (el.dataset.statTitle) { /* already set */ }
+    if (el.dataset.pageName) { /* already set */ }
+    if (el.dataset.sidebarItem) { /* already set */ }
+    if (el.dataset.chartTitle) { document.getElementById('chartTotal').innerHTML = '<strong>' + raw + '</strong>'; }
+    if (el.dataset.axisLabel === 'x') {
+        const idx = parseInt(el.dataset.axisIndex);
+        if (chartInstance && !isNaN(idx) && raw) {
+            if (!state.chartLabels[idx]) state.chartLabels[idx] = chartInstance.data.labels[idx];
+            state.chartLabels[idx] = raw;
+            chartInstance.data.labels[idx] = raw;
+            chartInstance.update('none');
+            setTimeout(buildAxisOverlays, 50);
+        }
+    }
+    if (el.dataset.axisLabel === 'y') {
+        if (chartInstance) {
+            chartInstance.update('none');
+            setTimeout(buildAxisOverlays, 50);
+        }
+    }
+
+    updateChangeArrows();
+    renderChartTotal();
+}
+
+function handler() { finishEdit(this); }
+
+function recalcSources() {
+    const total = state.sources.reduce((s, x) => s + x.count, 0) || 1;
+    state.sources.forEach(x => { x.percent = Math.round(x.count / total * 100); });
+    const tp = state.sources.reduce((s, x) => s + x.percent, 0);
+    if (tp !== 100) state.sources[0].percent += 100 - tp;
+}
+
+// ── Source bar drag-to-edit ────────────────────────────────────
+let srcDragIdx = -1;
+let srcDragStartX = 0;
+let srcDragStartPct = 0;
+let srcDragging = false;
+const SRC_DRAG_MIN = 4;
+
+document.getElementById('sourcesList').addEventListener('mousedown', (e) => {
+    const wrapper = e.target.closest('[data-src-bar]');
+    if (!wrapper) return;
+    e.preventDefault();
+    const idx = parseInt(wrapper.dataset.srcIndex);
+    srcDragIdx = idx;
+    srcDragStartX = e.clientX;
+    srcDragStartPct = state.sources[idx].percent;
+    srcDragging = false;
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (srcDragIdx < 0) return;
+    const dx = e.clientX - srcDragStartX;
+    if (Math.abs(dx) > SRC_DRAG_MIN || srcDragging) {
+        if (!srcDragging) srcDragging = true;
+        const wrapper = document.querySelector('[data-src-bar][data-src-index="' + srcDragIdx + '"]');
+        if (!wrapper) return;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const barWidth = wrapperRect.width;
+        const pctPerPx = 100 / barWidth;
+        const newPct = Math.round(Math.max(0, Math.min(100, srcDragStartPct + dx * pctPerPx)));
+
+        state.sources[srcDragIdx].percent = newPct;
+        state.sources[srcDragIdx].count = Math.round(state.stats.totalEnquiries.value * newPct / 100);
+        recalcSources();
+
+        const bar = wrapper.querySelector('.source-bar');
+        if (bar) bar.style.width = state.sources[srcDragIdx].percent + '%';
+        const tip = wrapper.querySelector('.drag-tip');
+        if (tip) tip.textContent = state.sources[srcDragIdx].percent + '%';
+
+        const pctEl = wrapper.closest('.source-item').querySelector('[data-src-percent]');
+        if (pctEl) pctEl.textContent = state.sources[srcDragIdx].percent + '%';
+        const cntEl = wrapper.closest('.source-item').querySelector('[data-src-count]');
+        if (cntEl) cntEl.textContent = state.sources[srcDragIdx].count;
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    if (srcDragIdx < 0) return;
+    if (srcDragging) {
+        srcDragging = false;
+        renderAll();
+    }
+    srcDragIdx = -1;
+});
+
+function updateChangeArrows() {
+    document.querySelectorAll('.stat-change').forEach(el => {
+        const card = el.closest('.stat-card');
+        if (!card) return;
+        const pctEl = card.querySelector('[data-field="change"]');
+        if (!pctEl) return;
+        const stat = state.stats[pctEl.dataset.key];
+        if (!stat) return;
+        const isUp = stat.change >= 0;
+        el.className = 'stat-change ' + (isUp ? 'up' : 'down');
+        const svg = el.querySelector('svg');
+        if (svg) svg.style.transform = isUp ? '' : 'rotate(180deg)';
+    });
+}
+
+function renderSources() {
+    const container = document.getElementById('sourcesList');
+    container.innerHTML = state.sources.map((s, i) => `
+        <div class="source-item">
+            <span class="source-name editable-all" data-src-name data-src-index="${i}">${s.name}</span>
+            <div class="source-bar-wrapper" data-src-bar data-src-index="${i}">
+                <div class="source-bar ${s.barClass}" style="width:${s.percent}%"></div>
+                <div class="drag-tip">${s.percent}%</div>
+            </div>
+            <div class="source-stats">
+                <span class="source-percent editable-all" data-src-percent data-src-index="${i}">${s.percent}%</span>
+                <span class="source-count editable-all" data-src-count data-src-index="${i}">${s.count}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderChartTotal() {
+    document.getElementById('chartTotal').innerHTML = '<strong>' + state.stats.totalEnquiries.value + ' enquiries</strong>';
+}
+
+function renderAll() {
+    Object.keys(state.stats).forEach(key => {
+        const stat = state.stats[key];
+        document.querySelectorAll('[data-key="'+key+'"][data-field="value"]').forEach(el => {
+            if (el.dataset.editing !== 'true') el.textContent = stat.value + stat.suffix;
+        });
+        document.querySelectorAll('[data-key="'+key+'"][data-field="change"]').forEach(el => {
+            if (el.dataset.editing !== 'true') el.textContent = Math.abs(stat.change);
+        });
+        document.querySelectorAll('[data-key="'+key+'"][data-field="changeLabel"]').forEach(el => {
+            if (el.dataset.editing !== 'true') el.textContent = stat.changeLabel;
+        });
+    });
+    updateChangeArrows();
+    renderSources();
+    renderChartTotal();
+}
+
+// ── Chart drag editing ──────────────────────────────────────────
+let chartInstance = null;
+
+function initChart() {
+    const ctx = document.getElementById('enquiriesChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: getChartLabels(state.dateRange),
+            datasets: [{
+                label: 'Enquiries',
+                data: state.chartData,
+                backgroundColor: '#3b82f6',
+                borderRadius: 4,
+                barPercentage: 0.65,
+                categoryPercentage: 0.8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#111827',
+                    titleFont: { family: 'Inter', size: 12 },
+                    bodyFont: { family: 'Inter', size: 13, weight: '600' },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: false,
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false },
+                    border: { display: false },
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 10,
+                    ticks: {
+                        stepSize: 2,
+                        display: false,
+                    },
+                    grid: { color: '#f3f4f6', drawTicks: false },
+                    border: { display: false },
+                }
+            },
+            layout: { padding: { top: 4 } },
+            onHover: (event, activeElements) => {
+                event.native.target.style.cursor = activeElements.length ? 'ns-resize' : 'default';
+            },
+        }
+    });
+}
+
+function getChartLabels(days) {
+    const defaults = [];
+    for (let i = 1; i <= days; i++) defaults.push(i + ' Sep');
+    // Use persisted overrides if they exist, otherwise defaults
+    return state.chartLabels.length > 0 ? state.chartLabels : defaults;
+}
+
+// Chart drag logic
+const chartContainer = document.getElementById('chartContainer');
+const dragTooltip = document.getElementById('dragTooltip');
+let dragBarIdx = -1;
+let chartDragging = false;
+let chartMouseDown = false;
+let chartMouseStartY = 0;
+const DRAG_MIN = 4;
+
+chartContainer.addEventListener('mousedown', (e) => {
+    if (!chartInstance) return;
+    chartMouseDown = true;
+    chartMouseStartY = e.clientY;
+    chartDragging = false;
+    dragBarIdx = findBarAt(e.clientX, e.clientY);
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!chartMouseDown || dragBarIdx < 0) return;
+    if (!chartDragging && Math.abs(e.clientY - chartMouseStartY) > DRAG_MIN) {
+        chartDragging = true;
+        chartContainer.classList.add('dragging');
+    }
+    if (chartDragging) {
+        const newVal = yToVal(e.clientY);
+        state.chartData[dragBarIdx] = newVal;
+        chartInstance.data.datasets[0].data = state.chartData.slice(0, state.dateRange);
+        chartInstance.update('none');
+
+        const total = state.chartData.slice(0, state.dateRange).reduce((a, b) => a + (isNaN(b) ? 0 : b), 0);
+        state.stats.totalEnquiries.value = Math.round(total);
+        renderChartTotal();
+
+        dragTooltip.textContent = newVal;
+        dragTooltip.classList.add('show');
+        const cr = chartContainer.getBoundingClientRect();
+        const meta = chartInstance.getDatasetMeta(0);
+        const bar = meta.data[dragBarIdx];
+        if (bar) {
+            const br = bar.getBoundingClientRect();
+            dragTooltip.style.left = (br.left + br.width/2 - cr.left - 15) + 'px';
+            dragTooltip.style.top = (e.clientY - cr.top - 30) + 'px';
+        }
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    if (!chartMouseDown) return;
+    chartMouseDown = false;
+    chartContainer.classList.remove('dragging');
+    dragTooltip.classList.remove('show');
+
+    if (chartDragging) {
+        chartDragging = false;
+        chartInstance.update('active');
+        renderAll();
+        dragBarIdx = -1;
+    } else if (dragBarIdx >= 0) {
+        // It was a click on a bar - open inline editor
+        openBarEditor(dragBarIdx);
+        dragBarIdx = -1;
+    }
+});
+
+function findBarAt(cx, cy) {
+    if (!chartInstance) return -1;
+    const canvas = chartInstance.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / rect.width; // canvas internal pixels per CSS pixel
+
+    const x = (cx - rect.left) * dpr;
+    const y = (cy - rect.top) * dpr;
+
+    const meta = chartInstance.getDatasetMeta(0);
+    let best = -1, bestD = Infinity;
+    for (let i = 0; i < meta.data.length; i++) {
+        const bar = meta.data[i];
+        const bw = bar.width;
+        const bx = bar.x;
+        const by = bar.y;
+        const bb = bar.base;
+        if (x < bx - bw/2 - 4 || x > bx + bw/2 + 4) continue;
+        const hitTop = by - 14 * dpr;
+        const hitBottom = Math.max(bb, by) + 6 * dpr;
+        if (y < hitTop || y > hitBottom) continue;
+        const mid = (by + Math.max(bb, by)) / 2;
+        const dist = Math.abs(y - mid);
+        if (dist < bestD) { bestD = dist; best = i; }
+    }
+    return best;
+}
+
+function yToVal(clientY) {
+    const chartArea = chartInstance.chartArea;
+    const yScale = chartInstance.scales.y;
+    const rect = chartInstance.canvas.getBoundingClientRect();
+    const canvasY = clientY - rect.top;
+    const ratio = 1 - (canvasY - chartArea.top) / (chartArea.bottom - chartArea.top);
+    return Math.round(Math.max(0, Math.min(ratio * yScale.max, yScale.max)) * 10) / 10;
+}
+
+function openBarEditor(idx) {
+    const val = state.chartData[idx];
+    const label = chartInstance.data.labels[idx] || '';
+    const existing = document.getElementById('barEditor');
+    if (existing) existing.remove();
+
+    const meta = chartInstance.getDatasetMeta(0);
+    const bar = meta.data[idx];
+    if (!bar) return;
+
+    const cr = chartContainer.getBoundingClientRect();
+    const canvasRect = chartInstance.canvas.getBoundingClientRect();
+    const chartArea = chartInstance.chartArea;
+    const dpr = chartInstance.canvas.width / canvasRect.width;
+
+    // Convert bar internal coords to CSS
+    const bx = bar.x / dpr;
+    const by = bar.y / dpr;
+    const bb = bar.base / dpr;
+    const bw = bar.width / dpr;
+
+    // If bar has zero height, place editor just below baseline
+    const barTopCss = by;
+    const barBottomCss = Math.max(by, bb);
+
+    const editor = document.createElement('div');
+    editor.id = 'barEditor';
+    editor.style.cssText = 'position:absolute;display:flex;align-items:center;gap:6px;z-index:50;background:white;border:2px solid #2563eb;border-radius:8px;padding:8px 12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);font-family:Inter,sans-serif;';
+    editor.innerHTML = '<span style="font-size:11px;color:#9ca3af;font-weight:600;min-width:40px;text-align:center;">'+label+'</span><input type="number" id="barEditInput" value="'+val+'" step="0.5" min="0" max="10" style="width:70px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:14px;font-weight:600;font-family:inherit;outline:none;">';
+
+    let left = bx + canvasRect.left - cr.left - 55;
+    left = Math.max(0, Math.min(left, cr.width - 170));
+    // Place editor below the bar, or above if bar is near bottom
+    let top = barBottomCss + 6 - cr.top;
+    if (barBottomCss + 48 > canvasRect.bottom - cr.top) {
+        top = barTopCss - 48 - cr.top;
+    }
+    editor.style.left = left + 'px';
+    editor.style.top = top + 'px';
+
+    chartContainer.appendChild(editor);
+    const input = document.getElementById('barEditInput');
+    input.focus();
+    input.select();
+
+    function save() {
+        const v = parseFloat(input.value);
+        if (!isNaN(v) && v >= 0) state.chartData[idx] = v;
+        editor.remove();
+        chartInstance.data.datasets[0].data = state.chartData.slice(0, state.dateRange);
+        chartInstance.update('active');
+        const total = state.chartData.slice(0, state.dateRange).reduce((a, b) => a + (isNaN(b) ? 0 : b), 0);
+        state.stats.totalEnquiries.value = Math.round(total);
+        renderAll();
+    }
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        if (e.key === 'Escape') { editor.remove(); }
+    });
+    input.addEventListener('blur', save);
+}
+
+function updateChart() {
+    if (!chartInstance) return;
+    chartInstance.data.labels = getChartLabels(state.dateRange);
+    chartInstance.data.datasets[0].data = state.chartData.slice(0, state.dateRange);
+    chartInstance.update('none');
+}
+
+function buildAxisOverlays() {
+    if (!chartInstance) return;
+    const canvas = chartInstance.canvas;
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvasRect.width / canvas.width;
+    const scaleY = canvasRect.height / canvas.height;
+
+    const chartArea = chartInstance.chartArea;
+    const xScale = chartInstance.scales.x;
+    const yScale = chartInstance.scales.y;
+
+    // X-axis labels
+    const xContainer = document.getElementById('xAxisLabels');
+    xContainer.innerHTML = '';
+    if (xScale) {
+        const labels = chartInstance.data.labels;
+        const step = Math.max(1, Math.floor(labels.length / 10));
+        labels.forEach((label, i) => {
+            if (i % step !== 0 && i !== labels.length - 1) return;
+            const canvasPx = xScale.getPixelForTick(i);
+            const cssX = canvasPx * scaleX;
+            const cssY = chartArea.bottom * scaleY + 4;
+            const div = document.createElement('div');
+            div.className = 'axis-overlay x-label editable-all';
+            div.textContent = label;
+            div.dataset.axisLabel = 'x';
+            div.dataset.axisIndex = i;
+            div.style.cssText = 'position:absolute;left:' + cssX + 'px;top:' + cssY + 'px;transform:translateX(-50%);text-align:center;pointer-events:auto;';
+            xContainer.appendChild(div);
+        });
+    }
+
+    // Y-axis labels
+    const yContainer = document.getElementById('yAxisLabels');
+    yContainer.innerHTML = '';
+    if (yScale) {
+        yScale.ticks.forEach((tick, i) => {
+            const canvasPx = yScale.getPixelForTick(i);
+            const cssY = canvasPx * scaleY;
+            const cssX = chartArea.left * scaleX - 8;
+            const div = document.createElement('div');
+            div.className = 'axis-overlay y-label editable-all';
+            div.textContent = typeof tick === 'object' ? tick.label : tick;
+            div.dataset.axisLabel = 'y';
+            div.dataset.axisValue = typeof tick === 'object' ? tick.value : tick;
+            div.style.cssText = 'position:absolute;left:' + cssX + 'px;top:' + cssY + 'px;transform:translateY(-50%);text-align:right;pointer-events:auto;';
+            yContainer.appendChild(div);
+        });
+    }
+}
+
+// Render chart and overlays
+initChart();
+renderAll();
+setTimeout(buildAxisOverlays, 150);
+
+// Rebuild overlays on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildAxisOverlays, 150);
+});
+
+// Handle axis label edits
+
+</script>
+</body>
+</html>
