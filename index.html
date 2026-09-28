@@ -225,26 +225,47 @@
             font-family: 'Inter', sans-serif;
             line-height: 1;
         }
+        /* NOTE: intentionally no padding/margin here. Padding grows the box and a
+           compensating negative margin would normally cancel that out for a plain
+           left-positioned element, but these overlays are horizontally/vertically
+           centered via transform: translateX(-50%)/translateY(-50%), and that
+           percentage is computed off the (now-larger) border-box *after* padding
+           is added. A padding+negative-margin pair therefore throws the transform's
+           centering off by roughly the padding amount. Outline and box-shadow paint
+           outside the box without changing its dimensions, so they don't have this
+           problem — use those for any hover/focus affordance instead of padding/
+           margin/border here. */
         .axis-overlay.editable {
             pointer-events: auto;
             cursor: default;
-            padding: 0 3px;
-            margin: 0 -3px;
-            border: 2px solid transparent;
             border-radius: 3px;
-            transition: border-color 0.15s, background 0.15s;
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            transition: outline-color 0.15s, background-color 0.15s;
         }
         .axis-overlay.editable:hover {
-            border-color: #d1d5db;
-            background: rgba(255,255,255,0.7);
+            outline-color: #d1d5db;
+            background-color: rgba(255,255,255,0.7);
         }
         .axis-overlay.editable:focus {
-            border-color: #2563eb;
-            background: white;
-            color: #111827;
             outline: none;
+            background-color: white;
+            color: #111827;
             cursor: text;
-            box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+            box-shadow: 0 0 0 2px #2563eb, 0 0 0 4px rgba(37,99,235,0.15);
+        }
+        /* Override the global [contenteditable="true"] rule for axis overlays only:
+           same reasoning as above — its padding/margin pair would shift the label
+           off-center while actively typing. Keep the visual "editing" cue via
+           box-shadow instead, which doesn't affect box size. */
+        .axis-overlay[contenteditable="true"] {
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+            color: #111827;
+            cursor: text;
+            box-shadow: 0 0 0 2px #2563eb, 0 0 0 4px rgba(37,99,235,0.15);
         }
         .x-label { text-align: center; }
         .y-label { text-align: right; }
@@ -351,6 +372,63 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+        /* ── Responsive ──────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .bottom-grid { grid-template-columns: 1fr; }
+            .main-content { padding: 24px 20px; }
+        }
+
+        @media (max-width: 700px) {
+            body { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                padding: 6px 4px;
+                border-right: none;
+                border-bottom: 1px solid #f3f4f6;
+                overflow-x: auto;
+                overflow-y: hidden;
+                position: sticky;
+                top: 0;
+                z-index: 20;
+                -webkit-overflow-scrolling: touch;
+            }
+            .sidebar-nav {
+                display: flex;
+                gap: 2px;
+            }
+            .sidebar-nav li {
+                flex-direction: column;
+                justify-content: center;
+                gap: 3px;
+                padding: 7px 12px;
+                margin: 0;
+                white-space: nowrap;
+                font-size: 10.5px;
+                flex-shrink: 0;
+            }
+            .sidebar-nav li svg { width: 18px; height: 18px; }
+            .main-content { padding: 16px 16px 32px; }
+            .dashboard-header { flex-wrap: wrap; row-gap: 10px; }
+            .dashboard-header h1 { font-size: 24px; }
+            .subtitle { margin-bottom: 20px; }
+            .chart-card, .sources-card { padding: 16px; }
+            .stat-card { padding: 16px; }
+            .stat-value { font-size: 28px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+            .stat-card { flex-direction: row; }
+            .chart-container { height: 200px; }
+            .source-name { width: 88px; font-size: 12px; }
+            .source-count { min-width: 16px; }
+            .date-picker { padding: 7px 10px; font-size: 13px; }
+            .date-dropdown { min-width: 160px; right: -8px; }
+            .card-title { font-size: 15px; }
+            .dashboard-header h1 { font-size: 21px; }
+        }
     </style>
 </head>
 <body>
@@ -1169,14 +1247,16 @@ function buildAxisOverlays() {
     xContainer.innerHTML = '';
     if (xScale) {
         const labels = chartInstance.data.labels;
-        const step = Math.max(1, Math.floor(labels.length / 10));
+        const areaWidthCss = chartArea.width * scaleX;
+        const maxLabelsFit = Math.max(2, Math.floor(areaWidthCss / 42));
+        const step = Math.max(1, Math.ceil(labels.length / maxLabelsFit));
         labels.forEach((label, i) => {
             if (i % step !== 0 && i !== labels.length - 1) return;
             const canvasPx = xScale.getPixelForTick(i);
             const cssX = canvasPx * scaleX;
             const cssY = chartArea.bottom * scaleY + 4;
             const div = document.createElement('div');
-            div.className = 'axis-overlay x-label editable-all';
+            div.className = 'axis-overlay x-label editable editable-all';
             div.textContent = label;
             div.dataset.axisLabel = 'x';
             div.dataset.axisIndex = i;
@@ -1194,7 +1274,7 @@ function buildAxisOverlays() {
             const cssY = canvasPx * scaleY;
             const cssX = chartArea.left * scaleX - 8;
             const div = document.createElement('div');
-            div.className = 'axis-overlay y-label editable-all';
+            div.className = 'axis-overlay y-label editable editable-all';
             div.textContent = typeof tick === 'object' ? tick.label : tick;
             div.dataset.axisLabel = 'y';
             div.dataset.axisValue = typeof tick === 'object' ? tick.value : tick;
