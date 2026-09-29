@@ -224,6 +224,7 @@
             user-select: none;
             font-family: 'Inter', sans-serif;
             line-height: 1;
+            white-space: nowrap;
         }
         /* NOTE: intentionally no padding/margin here. Padding grows the box and a
            compensating negative margin would normally cancel that out for a plain
@@ -538,7 +539,7 @@
         <div class="stat-card orange">
             <div class="stat-info">
                 <div class="stat-title editable-all" data-statTitle>Conversion rate</div>
-                <div class="stat-value"><span class="editable-all" data-key="conversionRate" data-field="value">29</span>%</div>
+                <div class="stat-value"><span class="editable-all" data-key="conversionRate" data-field="value">29%</span></div>
                 <div class="stat-change up">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
                     <span class="editable-all" data-key="conversionRate" data-field="change">6</span>%
@@ -1250,8 +1251,19 @@ function buildAxisOverlays() {
         const areaWidthCss = chartArea.width * scaleX;
         const maxLabelsFit = Math.max(2, Math.floor(areaWidthCss / 42));
         const step = Math.max(1, Math.ceil(labels.length / maxLabelsFit));
-        labels.forEach((label, i) => {
-            if (i % step !== 0 && i !== labels.length - 1) return;
+        const lastIdx = labels.length - 1;
+        const shownIndices = [];
+        for (let i = 0; i < labels.length; i += step) shownIndices.push(i);
+        if (shownIndices[shownIndices.length - 1] !== lastIdx) {
+            const gap = lastIdx - shownIndices[shownIndices.length - 1];
+            if (gap < step && shownIndices.length > 1) {
+                shownIndices[shownIndices.length - 1] = lastIdx;
+            } else {
+                shownIndices.push(lastIdx);
+            }
+        }
+        shownIndices.forEach(i => {
+            const label = labels[i];
             const canvasPx = xScale.getPixelForTick(i);
             const cssX = canvasPx * scaleX;
             const cssY = chartArea.bottom * scaleY + 4;
