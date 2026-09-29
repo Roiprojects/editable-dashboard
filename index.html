@@ -1313,7 +1313,7 @@ function buildAxisOverlays() {
         }
         shownIndices.forEach(i => {
             const label = labels[i];
-            const canvasPx = xScale.getPixelForTick(i);
+            const canvasPx = xScale.getPixelForValue(label, i);
             const cssX = canvasPx * scaleX;
             const cssY = chartArea.bottom * scaleY + 4;
             const div = document.createElement('div');
