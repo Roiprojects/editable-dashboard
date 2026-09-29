@@ -1179,10 +1179,11 @@ function findBarAt(cx, cy) {
     if (!chartInstance) return -1;
     const canvas = chartInstance.canvas;
     const rect = canvas.getBoundingClientRect();
-    const dpr = canvas.width / rect.width; // canvas internal pixels per CSS pixel
-
-    const x = (cx - rect.left) * dpr;
-    const y = (cy - rect.top) * dpr;
+    // meta.data[i] geometry is already in CSS pixels (see note in
+    // buildAxisOverlays) - compare directly against CSS-relative mouse coords,
+    // no devicePixelRatio conversion needed.
+    const x = cx - rect.left;
+    const y = cy - rect.top;
 
     const meta = chartInstance.getDatasetMeta(0);
     let best = -1, bestD = Infinity;
@@ -1193,8 +1194,8 @@ function findBarAt(cx, cy) {
         const by = bar.y;
         const bb = bar.base;
         if (x < bx - bw/2 - 4 || x > bx + bw/2 + 4) continue;
-        const hitTop = by - 14 * dpr;
-        const hitBottom = Math.max(bb, by) + 6 * dpr;
+        const hitTop = by - 14;
+        const hitBottom = Math.max(bb, by) + 6;
         if (y < hitTop || y > hitBottom) continue;
         const mid = (by + Math.max(bb, by)) / 2;
         const dist = Math.abs(y - mid);
@@ -1224,14 +1225,17 @@ function openBarEditor(idx) {
 
     const cr = chartContainer.getBoundingClientRect();
     const canvasRect = chartInstance.canvas.getBoundingClientRect();
-    const chartArea = chartInstance.chartArea;
-    const dpr = chartInstance.canvas.width / canvasRect.width;
 
-    // Convert bar internal coords to CSS
-    const bx = bar.x / dpr;
-    const by = bar.y / dpr;
-    const bb = bar.base / dpr;
-    const bw = bar.width / dpr;
+    // bar.x/y/base/width are already CSS px relative to the canvas's own origin
+    // (see note in buildAxisOverlays - no devicePixelRatio conversion needed).
+    // Offset by the canvas's position within chartContainer (normally ~0 since
+    // the canvas fills it) to get chartContainer-relative coordinates, since
+    // this editor is an absolutely-positioned child of chartContainer.
+    const originLeft = canvasRect.left - cr.left;
+    const originTop = canvasRect.top - cr.top;
+    const bx = bar.x + originLeft;
+    const by = bar.y + originTop;
+    const bb = bar.base + originTop;
 
     // If bar has zero height, place editor just below baseline
     const barTopCss = by;
@@ -1242,12 +1246,12 @@ function openBarEditor(idx) {
     editor.style.cssText = 'position:absolute;display:flex;align-items:center;gap:6px;z-index:50;background:white;border:2px solid #2563eb;border-radius:8px;padding:8px 12px;box-shadow:0 4px 20px rgba(0,0,0,0.12);font-family:Inter,sans-serif;';
     editor.innerHTML = '<span style="font-size:11px;color:#9ca3af;font-weight:600;min-width:40px;text-align:center;">'+label+'</span><input type="number" id="barEditInput" value="'+val+'" step="0.5" min="0" max="10" style="width:70px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:14px;font-weight:600;font-family:inherit;outline:none;">';
 
-    let left = bx + canvasRect.left - cr.left - 55;
+    let left = bx - 55;
     left = Math.max(0, Math.min(left, cr.width - 170));
     // Place editor below the bar, or above if bar is near bottom
-    let top = barBottomCss + 6 - cr.top;
-    if (barBottomCss + 48 > canvasRect.bottom - cr.top) {
-        top = barTopCss - 48 - cr.top;
+    let top = barBottomCss + 6;
+    if (barBottomCss + 48 > cr.height) {
+        top = barTopCss - 48;
     }
     editor.style.left = left + 'px';
     editor.style.top = top + 'px';
@@ -1283,11 +1287,15 @@ function updateChart() {
 
 function buildAxisOverlays() {
     if (!chartInstance) return;
-    const canvas = chartInstance.canvas;
-    const canvasRect = canvas.getBoundingClientRect();
-    const scaleX = canvasRect.width / canvas.width;
-    const scaleY = canvasRect.height / canvas.height;
-
+    // NOTE: chartArea, scale.getPixelForValue()/getPixelForTick(), and dataset
+    // element geometry (meta.data[i].x/y/base/width) are ALL already expressed
+    // in CSS pixels relative to the canvas's own getBoundingClientRect() origin
+    // - Chart.js applies the devicePixelRatio scaling internally via a canvas
+    // context transform, so none of these values need (or should) be multiplied
+    // by any canvas.width/getBoundingClientRect().width ratio. Doing so is a
+    // no-op at devicePixelRatio 1 (which is why it can look "fine" in a default
+    // headless browser) but silently shrinks every position on any real display
+    // with OS-level scaling (Windows 125%/150%, Retina 2x, etc).
     const chartArea = chartInstance.chartArea;
     const xScale = chartInstance.scales.x;
     const yScale = chartInstance.scales.y;
@@ -1297,7 +1305,7 @@ function buildAxisOverlays() {
     xContainer.innerHTML = '';
     if (xScale) {
         const labels = chartInstance.data.labels;
-        const areaWidthCss = chartArea.width * scaleX;
+        const areaWidthCss = chartArea.width;
         const maxLabelsFit = Math.max(2, Math.floor(areaWidthCss / 42));
         const step = Math.max(1, Math.ceil(labels.length / maxLabelsFit));
         const lastIdx = labels.length - 1;
@@ -1313,9 +1321,8 @@ function buildAxisOverlays() {
         }
         shownIndices.forEach(i => {
             const label = labels[i];
-            const canvasPx = xScale.getPixelForValue(label, i);
-            const cssX = canvasPx * scaleX;
-            const cssY = chartArea.bottom * scaleY + 4;
+            const cssX = xScale.getPixelForValue(label, i);
+            const cssY = chartArea.bottom + 4;
             const div = document.createElement('div');
             div.className = 'axis-overlay x-label editable editable-all';
             div.textContent = label;
@@ -1331,9 +1338,8 @@ function buildAxisOverlays() {
     yContainer.innerHTML = '';
     if (yScale) {
         yScale.ticks.forEach((tick, i) => {
-            const canvasPx = yScale.getPixelForTick(i);
-            const cssY = canvasPx * scaleY;
-            const cssX = chartArea.left * scaleX - 8;
+            const cssY = yScale.getPixelForTick(i);
+            const cssX = chartArea.left - 8;
             const div = document.createElement('div');
             div.className = 'axis-overlay y-label editable editable-all';
             div.textContent = typeof tick === 'object' ? tick.label : tick;
