@@ -197,7 +197,7 @@
         .card-title { font-size: 16px; font-weight: 600; color: #111827; }
         .card-total { font-size: 14px; color: #2563eb; font-weight: 500; }
         .card-total strong { font-size: 16px; }
-        .chart-container { position: relative; height: 240px; overflow: visible; }
+        .chart-container { position: relative; height: 240px; overflow: visible; touch-action: none; }
         .chart-container.dragging canvas { pointer-events: none; }
         .drag-tooltip {
             position: absolute;
@@ -293,6 +293,7 @@
             overflow: visible;
             cursor: ew-resize;
             position: relative;
+            touch-action: none;
         }
         .source-bar-wrapper:hover { height: 10px; }
         .source-bar-wrapper .drag-tip {
@@ -945,7 +946,7 @@ let srcDragStartPct = 0;
 let srcDragging = false;
 const SRC_DRAG_MIN = 4;
 
-document.getElementById('sourcesList').addEventListener('mousedown', (e) => {
+document.getElementById('sourcesList').addEventListener('pointerdown', (e) => {
     const wrapper = e.target.closest('[data-src-bar]');
     if (!wrapper) return;
     e.preventDefault();
@@ -956,7 +957,7 @@ document.getElementById('sourcesList').addEventListener('mousedown', (e) => {
     srcDragging = false;
 });
 
-document.addEventListener('mousemove', (e) => {
+document.addEventListener('pointermove', (e) => {
     if (srcDragIdx < 0) return;
     const dx = e.clientX - srcDragStartX;
     if (Math.abs(dx) > SRC_DRAG_MIN || srcDragging) {
@@ -984,7 +985,7 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('pointerup', () => {
     if (srcDragIdx < 0) return;
     if (srcDragging) {
         srcDragging = false;
@@ -1120,15 +1121,16 @@ let chartMouseDown = false;
 let chartMouseStartY = 0;
 const DRAG_MIN = 4;
 
-chartContainer.addEventListener('mousedown', (e) => {
+chartContainer.addEventListener('pointerdown', (e) => {
     if (!chartInstance) return;
     chartMouseDown = true;
     chartMouseStartY = e.clientY;
     chartDragging = false;
     dragBarIdx = findBarAt(e.clientX, e.clientY);
+    if (dragBarIdx >= 0) e.preventDefault();
 });
 
-document.addEventListener('mousemove', (e) => {
+document.addEventListener('pointermove', (e) => {
     if (!chartMouseDown || dragBarIdx < 0) return;
     if (!chartDragging && Math.abs(e.clientY - chartMouseStartY) > DRAG_MIN) {
         chartDragging = true;
@@ -1147,17 +1149,20 @@ document.addEventListener('mousemove', (e) => {
         dragTooltip.textContent = newVal;
         dragTooltip.classList.add('show');
         const cr = chartContainer.getBoundingClientRect();
+        const canvasRect = chartInstance.canvas.getBoundingClientRect();
         const meta = chartInstance.getDatasetMeta(0);
         const bar = meta.data[dragBarIdx];
         if (bar) {
-            const br = bar.getBoundingClientRect();
-            dragTooltip.style.left = (br.left + br.width/2 - cr.left - 15) + 'px';
+            // bar.x is CSS px relative to the canvas's own origin (see note in
+            // buildAxisOverlays); Chart.js elements have no getBoundingClientRect.
+            const barCenterX = bar.x + (canvasRect.left - cr.left);
+            dragTooltip.style.left = (barCenterX - 15) + 'px';
             dragTooltip.style.top = (e.clientY - cr.top - 30) + 'px';
         }
     }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('pointerup', () => {
     if (!chartMouseDown) return;
     chartMouseDown = false;
     chartContainer.classList.remove('dragging');
